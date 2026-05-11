@@ -123,7 +123,7 @@ li::marker { color:var(--accent); }
 /* ── Sidebar ── */
 .sidebar {
   width:var(--sidebar-w); flex-shrink:0;
-  position:fixed; top:0; left:0; bottom:0;
+  position:fixed; top:var(--topbar-h); left:0; bottom:0;
   background:var(--surface); border-right:1px solid var(--border);
   overflow-y:auto; z-index:300;
   transition:transform .28s cubic-bezier(.4,0,.2,1);
@@ -177,7 +177,7 @@ li::marker { color:var(--accent); }
 .nav-sub a.active { color:var(--accent); border-color:var(--accent); font-weight:500; }
 
 /* ── Main content ── */
-.main-content { margin-left:var(--sidebar-w); flex:1; min-width:0; position:relative; z-index:1; }
+.main-content { margin-left:var(--sidebar-w); flex:1; min-width:0; position:relative; z-index:1; padding-top:var(--topbar-h); }
 
 /* ── Article ── */
 .article-outer { padding:0 0 80px; }
