@@ -225,8 +225,13 @@ li::marker { color: var(--accent); }
   font-size: .9rem;
   font-weight: 700;
   color: var(--text);
+  display: none; /* hidden on desktop — sidebar logo already shows the title */
 }
 .topbar-title span { color: var(--accent); }
+
+@media(max-width:900px){
+  .topbar-title { display: block; } /* show on mobile when sidebar is hidden */
+}
 
 #progress-bar {
   position: fixed; top: 0; left: 0;
