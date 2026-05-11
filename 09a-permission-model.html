@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>The Permission Model &#8212; AI Memory Guide</title>
+<meta name="description" content="Scopes, ownership, and access control for multi-agent memory"/>
+<link rel="stylesheet" href="shared.css"/>
+<style>@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div class="topbar"><div class="sidebar-toggle" onclick="toggleSidebar()"><span></span><span></span><span></span></div><div class="topbar-title">AI <span>Memory</span> Guide</div></div>
+<nav class="sidebar" id="sidebar"><div class="sidebar-logo"><a href="index.html">&#129504; AI <span>Memory</span> Guide</a></div><div class="sidebar-nav"><div class="nav-section-label">Chapters</div><div class="nav-item"><a href="01-what-is-memory.html"><span class="nav-num">01</span>What is Memory?</a><div class="nav-sub"><a href="01a-try-it-yourself.html">Try it yourself</a></div></div><div class="nav-item"><a href="02-context-window.html"><span class="nav-num">02</span>The Context Window</a><div class="nav-sub"><a href="02a-fifo-eviction.html">FIFO Eviction</a></div></div><div class="nav-item"><a href="03-short-vs-long.html"><span class="nav-num">03</span>Short vs Long-Term</a><div class="nav-sub"><a href="03a-working-memory.html">Working Memory</a><a href="03b-long-term-memory.html">Long-Term Memory</a><a href="03c-write-conflicts.html">Write Conflicts</a></div></div><div class="nav-item"><a href="04-embeddings.html"><span class="nav-num">04</span>Vector Embeddings</a><div class="nav-sub"><a href="04a-cosine-similarity.html">Cosine Similarity</a><a href="04b-embedding-space.html">Embedding Space</a></div></div><div class="nav-item"><a href="05-memory-types.html"><span class="nav-num">05</span>Types of Memory</a><div class="nav-sub"><a href="05a-episodic.html">Episodic</a><a href="05b-semantic.html">Semantic</a><a href="05c-procedural.html">Procedural</a><a href="05d-working.html">Working</a><a href="05e-all-four-together.html">All Four Together</a></div></div><div class="nav-item"><a href="06-rag-loop.html"><span class="nav-num">06</span>The RAG Loop</a><div class="nav-sub"><a href="06a-hyde.html">HyDE</a><a href="06b-rrf.html">RRF</a></div></div><div class="nav-item"><a href="07-retrieval-pipeline.html"><span class="nav-num">07</span>Retrieval Pipeline</a><div class="nav-sub"><a href="07a-need-detection.html">Need Detection</a><a href="07b-hybrid-retrieval.html">Hybrid Retrieval</a></div></div><div class="nav-item"><a href="08-architectures.html"><span class="nav-num">08</span>Architectures</a><div class="nav-sub"><a href="08a-simple-buffer.html">Simple Buffer</a><a href="08b-rolling-summary.html">Rolling Summary</a><a href="08c-vector-store.html">Vector Store</a><a href="08d-knowledge-graph.html">Knowledge Graph</a><a href="08e-memgpt.html">MemGPT</a><a href="08f-self-editing.html">Letta</a></div></div><div class="nav-item"><a href="09-multi-agent.html"><span class="nav-num">09</span>Multi-Agent Memory</a><div class="nav-sub"><a href="09a-permission-model.html">Permissions</a><a href="09b-failure-modes.html">Failure Modes</a></div></div><div class="nav-item"><a href="10-production.html"><span class="nav-num">10</span>Production</a><div class="nav-sub"><a href="10a-multi-tenancy.html">Multi-Tenancy</a><a href="10b-latency-budget.html">Latency Budget</a><a href="10c-storage-tiers.html">Storage Tiers</a><a href="10d-memory-api.html">Memory API</a></div></div><div class="nav-item"><a href="11-build-your-own.html"><span class="nav-num">11</span>Build Your Own</a></div></div></nav>
+<div class="main-content"><div class="article-outer">
+<div class="article-hero fade" style="background:radial-gradient(ellipse 65% 55% at 65% 35%,rgba(77,142,245,.08) 0%,transparent 65%);"><div class="article-meta"><span class="tag">09a</span><span class="tag blue">Advanced</span><span class="read-time">&#9203; · 9 min</span></div><h1>The Multi-Agent Permission Model</h1><p style="font-size:1.05rem;color:var(--muted2);max-width:600px;margin-top:12px;font-style:italic;">Private by default, shared by explicit act. How to design memory scopes so agents collaborate without leaking.</p></div><div class="article-body"><div class="toc-aside"><div class="toc-aside-title">On this page</div><a href="#scopes">Memory scopes</a><a href="#policies">Access policies</a><a href="#impl">Implementation</a><a href="#quiz">Quiz</a></div><div id="scopes" class="fade"><div class="section-label">Architecture</div><h2>Memory scopes</h2><div class="table-wrap"><table><thead><tr><th>Scope</th><th>Who reads</th><th>Who writes</th><th>Use for</th></tr></thead><tbody><tr><td>Private</td><td>Owning agent</td><td>Owning agent</td><td>Scratchpad, hypotheses, internal reasoning</td></tr><tr><td>Project</td><td>All project agents</td><td>All project agents</td><td>Decisions, architecture, state</td></tr><tr><td>User profile</td><td>All agents for this user</td><td>Governed pipeline</td><td>User facts, preferences, history</td></tr><tr><td>Organization</td><td>All org agents</td><td>Designated writers</td><td>Policies, runbooks, templates</td></tr><tr><td>Global</td><td>All agents</td><td>System admins</td><td>Reference facts, public knowledge</td></tr></tbody></table></div></div><div class="divider"></div><div id="policies" class="fade"><div class="section-label">Policies</div><h2>Access policy table</h2><div class="code-file"><div class="code-file-header"><div class="code-file-dots"><div class="code-file-dot"></div><div class="code-file-dot"></div><div class="code-file-dot"></div></div>permission.py</div><pre><code>WRITE_POLICY = {
+    ("researcher", "research_note", "private"):  "ALLOW",
+    ("researcher", "research_note", "project"):  "ALLOW",
+    ("researcher", "research_note", "user"):     "DENY",
+    ("coder",      "code_pattern",  "project"):  "ALLOW",
+    ("coder",      "code_pattern",  "org"):      "DENY",
+    ("support",    "customer_ep",   "user"):     "ALLOW",
+}
+
+def can_write(agent_role, content_kind, target_scope):
+    return WRITE_POLICY.get((agent_role, content_kind, target_scope), "DENY") == "ALLOW"</code></pre></div><div class="callout callout-blue"><div class="callout-label">&#128161; Deny by default</div><p>Any (agent, content, scope) triple not explicitly in the policy table defaults to DENY. This prevents accidental over-sharing when new agent types are added.</p></div></div><div class="divider"></div><div id="impl" class="fade"><div class="section-label">Implementation</div><h2>In LangGraph / AutoGen</h2><div class="code-file"><div class="code-file-header"><div class="code-file-dots"><div class="code-file-dot"></div><div class="code-file-dot"></div><div class="code-file-dot"></div></div>langraph_scopes.py</div><pre><code># Scoped memory stores
+from langgraph.store import MemoryStore
+
+# Per-agent private store
+agent_stores = {agent_id: MemoryStore(namespace=("private", agent_id)) for agent_id in agents}
+
+# Shared project store
+project_store = MemoryStore(namespace=("project", project_id))
+
+# User profile store
+user_store = MemoryStore(namespace=("user", user_id))
+
+# Governed cross-scope write
+def project_write(agent_id, content, kind):
+    if not can_write(agent_roles[agent_id], kind, "project"):
+        raise PermissionError(f"{agent_id} cannot write {kind} to project")
+    audit_log(agent_id, content, kind, "project")
+    project_store.write(content, author=agent_id)</code></pre></div></div><div class="quiz" id="q09a"><div class="quiz-q">What should the default policy be for multi-agent memory writes?</div><div class="quiz-opts"><div class="quiz-opt" onclick="answerQuiz('q09a',this,false,'This is the dangerous anti-pattern.')"><span>A</span>ALLOW for all agents to all scopes</div><div class="quiz-opt" onclick="answerQuiz('q09a',this,true,'Correct. Deny by default prevents accidental over-sharing when new agent types or content kinds are added.')"><span>B</span>DENY for anything not explicitly listed in the policy table</div><div class="quiz-opt" onclick="answerQuiz('q09a',this,false,'The orchestrator needs different access, but blanket ALLOW is still too broad.')"><span>C</span>ALLOW only for the orchestrator agent</div><div class="quiz-opt" onclick="answerQuiz('q09a',this,false,'Self-regulation without enforcement creates governance gaps.')"><span>D</span>No write policy needed</div></div><div class="quiz-feedback" id="q09a-fb"></div></div></div>
+<div class="post-nav"><a class="post-nav-item" href="09-multi-agent.html"><div class="post-nav-label">&#8592; Previous</div><div class="post-nav-title">Multi-Agent Memory</div><div class="post-nav-sub">Overview</div></a><a class="post-nav-item" href="09b-failure-modes.html"><div class="post-nav-label">Next &#8594;</div><div class="post-nav-title">Failure Modes</div><div class="post-nav-sub">Six ways it breaks</div></a></div>
+<footer><p>AI Agent Memory &#8212; Interactive Learning Guide</p><div class="footer-links"><a href="index.html">Home</a><a href="https://arxiv.org/abs/2310.08560" target="_blank">MemGPT Paper</a><a href="https://arxiv.org/abs/2212.10496" target="_blank">HyDE Paper</a><a href="https://docs.letta.com" target="_blank">Letta Docs</a></div></footer>
+</div></div>
+<script src="shared.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Build Your Own &mdash; AI Memory Guide</title><meta name="description" content="End-to-end memory agent — the complete capstone"/><link rel="stylesheet" href="shared.css"/><style>@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}</style></head><body><div id="progress-bar"></div><div class="topbar"><div class="sidebar-toggle" onclick="toggleSidebar()"><span></span><span></span><span></span></div><div class="topbar-title">AI <span>Memory</span> Guide</div></div><nav class="sidebar" id="sidebar"><div class="sidebar-logo"><a href="index.html">&#129504; AI <span>Memory</span> Guide</a></div><div class="sidebar-nav"><div class="nav-section-label">Chapters</div><div class="nav-item"><a href="01-what-is-memory.html"><span class="nav-num">01</span>What is Memory?</a><div class="nav-sub"><a href="01a-try-it-yourself.html">Try it yourself</a></div></div><div class="nav-item"><a href="02-context-window.html"><span class="nav-num">02</span>The Context Window</a><div class="nav-sub"><a href="02a-fifo-eviction.html">FIFO Eviction</a></div></div><div class="nav-item"><a href="03-short-vs-long.html"><span class="nav-num">03</span>Short vs Long-Term</a><div class="nav-sub"><a href="03a-working-memory.html">Working Memory</a><a href="03b-long-term-memory.html">Long-Term Memory</a><a href="03c-write-conflicts.html">Write Conflicts</a></div></div><div class="nav-item"><a href="04-embeddings.html"><span class="nav-num">04</span>Vector Embeddings</a><div class="nav-sub"><a href="04a-cosine-similarity.html">Cosine Similarity</a><a href="04b-embedding-space.html">Embedding Space</a></div></div><div class="nav-item"><a href="05-memory-types.html"><span class="nav-num">05</span>Types of Memory</a><div class="nav-sub"><a href="05a-episodic.html">Episodic</a><a href="05b-semantic.html">Semantic</a><a href="05c-procedural.html">Procedural</a><a href="05d-working.html">Working</a><a href="05e-all-four-together.html">All Four Together</a></div></div><div class="nav-item"><a href="06-rag-loop.html"><span class="nav-num">06</span>The RAG Loop</a><div class="nav-sub"><a href="06a-hyde.html">HyDE</a><a href="06b-rrf.html">RRF</a></div></div><div class="nav-item"><a href="07-retrieval-pipeline.html"><span class="nav-num">07</span>Retrieval Pipeline</a><div class="nav-sub"><a href="07a-need-detection.html">Need Detection</a><a href="07b-hybrid-retrieval.html">Hybrid Retrieval</a></div></div><div class="nav-item"><a href="08-architectures.html"><span class="nav-num">08</span>Architectures</a><div class="nav-sub"><a href="08a-simple-buffer.html">Simple Buffer</a><a href="08b-rolling-summary.html">Rolling Summary</a><a href="08c-vector-store.html">Vector Store</a><a href="08d-knowledge-graph.html">Knowledge Graph</a><a href="08e-memgpt.html">MemGPT</a><a href="08f-self-editing.html">Letta</a></div></div><div class="nav-item"><a href="09-multi-agent.html"><span class="nav-num">09</span>Multi-Agent Memory</a><div class="nav-sub"><a href="09a-permission-model.html">Permissions</a><a href="09b-failure-modes.html">Failure Modes</a></div></div><div class="nav-item"><a href="10-production.html"><span class="nav-num">10</span>Production</a><div class="nav-sub"><a href="10a-multi-tenancy.html">Multi-Tenancy</a><a href="10b-latency-budget.html">Latency Budget</a><a href="10c-storage-tiers.html">Storage Tiers</a><a href="10d-memory-api.html">Memory API</a></div></div><div class="nav-item"><a href="11-build-your-own.html"><span class="nav-num">11</span>Build Your Own</a></div></div></nav><div class="main-content"><div class="article-outer"><div class="article-hero fade" style="background:radial-gradient(ellipse 65% 55% at 65% 35%,rgba(157,94,240,.07) 0%,transparent 65%);"><div class="article-meta"><span class="tag">11</span><span class="tag purple">Intermediate</span><span class="read-time">&#9203; 15 min read</span></div><h1>Build Your Own: A Working Memory Agent</h1><p style="font-size:1.05rem;color:var(--muted2);max-width:600px;margin-top:12px;font-style:italic;">Everything from Chapters 01&ndash;10 in one place. Wire up the read path, write path, and governance layer yourself.</p></div><div class="article-body"><div class="toc-aside"><div class="toc-aside-title">On this page</div><a href="#overview">What you will build</a><a href="#arch">Architecture</a><a href="#demo">Live demo</a><a href="#read">Read path code</a><a href="#write">Write path code</a><a href="#govern">Governance layer</a><a href="#prod">Making it production-ready</a><a href="#q">Final quiz</a></div><div id="overview" class="fade"><div class="section-label">The Goal</div><h2>What you will build</h2><p>By the end of this chapter you will have a working, end-to-end memory agent that covers every concept in this guide:</p><div class="two-col"><div class="card card-accent"><h4>&#9989; What it does</h4><ul style="font-size:.85rem;"><li>Stores facts extracted from conversations</li><li>Retrieves relevant memories each turn</li><li>PII governs every write</li><li>Supersedes contradicted facts</li><li>Handles multi-session continuity</li></ul></div><div class="card card-green"><h4>&#128203; What you need</h4><ul style="font-size:.85rem;"><li>Python 3.11+</li><li>An OpenAI API key (or any embedding model)</li><li>A vector DB (pgvector works locally)</li><li>Redis (optional, for hot tier)</li><li>One afternoon</li></ul></div></div><div class="callout callout-blue"><div class="callout-label">&#128161; The goal of this chapter</div><p>You already understand all the pieces. This chapter is about connecting them in a way that actually runs. The code is real and complete.</p></div></div><div class="divider"></div><div id="arch" class="fade"><div class="section-label">Architecture</div><h2>How the pieces connect</h2><p>Here is the complete system you are building. Each layer maps directly to a chapter in this guide:</p><div class="table-wrap"><table><thead><tr><th>Layer</th><th>Covers</th><th>Chapter</th></tr></thead><tbody><tr><td>Context assembly</td><td>Working memory, history packing, prompt construction</td><td>03, 05d</td></tr><tr><td>Need detection</td><td>Should we retrieve this turn?</td><td>07a</td></tr><tr><td>Read path</td><td>Dense + BM25 retrieval, RRF fusion, reranking</td><td>04, 06, 07b</td></tr><tr><td>Write path (async)</td><td>Fact extraction, PII filter, conflict check, upsert</td><td>03c, 08c</td></tr><tr><td>Memory store</td><td>Vector DB with user_id + status metadata</td><td>08c, 10a</td></tr><tr><td>Hot tier (optional)</td><td>Redis KV cache for top facts</td><td>10b, 10c</td></tr><tr><td>API surface</td><td>Three endpoints: ingest, search, delete</td><td>10d</td></tr></tbody></table></div></div><div class="divider"></div><div id="demo" class="fade"><div class="section-label">Live Demo</div><h2>Try the agent now &mdash; no setup required</h2><p>This is a browser simulation of the complete agent. Tell it your name, where you live, what you do. Then ask what it knows about you. It shows every memory operation as it happens.</p><div class="demo"><div class="demo-bar"><div class="demo-bar-dots"><div class="demo-bar-dot"></div><div class="demo-bar-dot"></div><div class="demo-bar-dot"></div></div><div class="demo-bar-label" id="mem-count">0 memories</div></div><div class="demo-body" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;min-height:340px;"><div style="display:flex;flex-direction:column;gap:0;"><div style="font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Conversation</div><div class="chat-wrap" id="agent-chat" style="flex:1;min-height:240px;"></div><div class="chat-input-row" style="margin-top:8px;"><input class="chat-input" id="agent-inp" placeholder="My name is... / I like... / What do you know about me?" onkeydown="if(event.key==='Enter')agentSend()"/><button class="btn btn-sm" onclick="agentSend()">Send</button><button class="btn btn-sm btn-ghost" onclick="simReset()">Reset</button></div></div><div style="display:flex;flex-direction:column;gap:0;"><div style="font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Memory Store</div><div id="mem-list" style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;"></div></div></div></div><div class="callout callout-blue"><div class="callout-label">&#128161; Suggested experiment</div><p><strong>Step 1:</strong> "My name is Alex." "I work as an engineer." "I love hiking." &mdash; watch them land in the memory store.<br/><strong>Step 2:</strong> "What do you know about me?" &mdash; the agent recalls from the store.<br/><strong>Step 3:</strong> Click Reset and ask "What is my name?" without telling it first &mdash; watch it fail gracefully.</p></div></div><div class="divider"></div><div id="read" class="fade"><div class="section-label">Read Path Code</div><h2>Putting retrieval together</h2><div class="code-file"><div class="code-file-header"><div class="code-file-dots"><div class="code-file-dot"></div><div class="code-file-dot"></div><div class="code-file-dot"></div></div>read_path.py</div><pre><code>from openai import OpenAI
+import numpy as np
+
+client = OpenAI()
+
+# 1. Embed query
+def embed(text: str) -> list[float]:
+    return client.embeddings.create(
+        model="text-embedding-3-small", input=text
+    ).data[0].embedding
+
+# 2. Cosine similarity
+def cosine_sim(a, b) -> float:
+    a, b = np.array(a), np.array(b)
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+# 3. Full read path (simplified)
+def read_path(query: str, user_id: str, memory_store, top_k=5):
+    # Need detection
+    if not needs_retrieval(query):
+        return []  # skip the store entirely
+
+    # Dense retrieval
+    query_vec = embed(query)
+    results = [
+        (cosine_sim(query_vec, m.vector), m)
+        for m in memory_store
+        if m.user_id == user_id and m.status == "active"
+    ]
+    results.sort(reverse=True)
+    return [m for _, m in results[:top_k]]
+
+# 4. Build prompt with retrieved memories
+def build_prompt(system: str, memories: list, history: list, user_msg: str) -> str:
+    parts = [system]
+    if memories:
+        parts.append("[MEMORY]\n" + "\n".join(f"- {m.text}" for m in memories))
+    parts.extend([f"{r}: {c}" for r, c in history[-10:]])
+    parts.append(f"User: {user_msg}")
+    return "\n\n".join(parts)</code></pre></div></div><div class="divider"></div><div id="write" class="fade"><div class="section-label">Write Path Code</div><h2>Extracting and storing facts</h2><div class="code-file"><div class="code-file-header"><div class="code-file-dots"><div class="code-file-dot"></div><div class="code-file-dot"></div><div class="code-file-dot"></div></div>write_path.py</div><pre><code>import json, re
+
+EXTRACT_PROMPT = """
+Analyze this conversation turn.
+Extract any facts worth storing long-term about the user.
+Return ONLY JSON: {"facts": [str], "worth_saving": bool}
+Turn: {turn}
+"""
+
+PII_PATTERNS = [
+    r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b",  # credit cards
+    r"\b\d{3}-\d{2}-\d{4}\b",                        # SSN
+    r"[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+",               # email (optional)
+]
+
+def extract_facts(turn: str) -> list[str]:
+    response = llm.call(EXTRACT_PROMPT.format(turn=turn))
+    parsed = json.loads(response)
+    return parsed.get("facts", []) if parsed.get("worth_saving") else []
+
+def pii_check(fact: str) -> bool:
+    return any(re.search(p, fact) for p in PII_PATTERNS)
+
+def write_path(turn: str, user_id: str, memory_store):
+    facts = extract_facts(turn)
+    for fact in facts:
+        if pii_check(fact):
+            continue  # drop PII silently
+
+        # Check for conflicts
+        similar = memory_store.search(fact, user_id=user_id, top_k=3)
+        for s in similar:
+            if conflicts(fact, s):  # semantic contradiction check
+                memory_store.update(s.id, {"status": "superseded"})
+
+        # Write clean fact
+        memory_store.upsert({
+            "text": fact,
+            "vector": embed(fact),
+            "user_id": user_id,
+            "status": "active",
+        })</code></pre></div></div><div class="divider"></div><div id="govern" class="fade"><div class="section-label">Governance Layer</div><h2>The layer that makes it production-safe</h2><div class="callout callout-amber"><div class="callout-label">&#9888; Governance is what separates a demo from a product</div><p>The read and write paths above are functional. The governance layer is what makes them trustworthy: PII protection, conflict resolution, permission scoping, and audit logging.</p></div><div class="steps"><div class="step"><div class="step-num">1</div><div class="step-body"><h4>PII filter on every write</h4><p>Run regex + optionally an LLM-based PII classifier before writing any fact. Redact or drop. Log the redaction event.</p></div></div><div class="step"><div class="step-num">2</div><div class="step-body"><h4>Conflict detection before every write</h4><p>Embed the new fact. Search the store for similar existing facts. If contradiction detected, mark old as superseded. Write new with pointer to old.</p></div></div><div class="step"><div class="step-num">3</div><div class="step-body"><h4>user_id filter on every read</h4><p>The search function must always pass user_id as a mandatory filter. Never allow a read without scope. This is a security invariant.</p></div></div><div class="step"><div class="step-num">4</div><div class="step-body"><h4>Audit log on writes and deletes</h4><p>Every upsert and deletion is logged: who wrote it, from what turn, what time, and why. This is your compliance and debugging trail.</p></div></div><div class="step"><div class="step-num">5</div><div class="step-body"><h4>Decay runner</h4><p>A nightly background job reduces the confidence score of unreinforced facts over time. High-age, low-confidence facts are reviewed or removed.</p></div></div></div></div><div class="divider"></div><div id="prod" class="fade"><div class="section-label">Production Checklist</div><h2>Before you ship</h2><div class="table-wrap"><table><thead><tr><th>Checklist item</th><th>Status to aim for</th></tr></thead><tbody><tr><td>p95 retrieval latency</td><td>Under 800ms (measure with distributed tracing)</td></tr><tr><td>Tenant isolation</td><td>user_id filter on 100% of reads (verify with integration tests)</td></tr><tr><td>PII redaction</td><td>Tested with a real PII test set (cards, SSNs, emails)</td></tr><tr><td>Write path async</td><td>Ingest endpoint returns in &lt;20ms; extraction queue monitored</td></tr><tr><td>Conflict detection</td><td>Test: write "user lives in Istanbul", then "user lives in Berlin" &mdash; verify supersession</td></tr><tr><td>Forget endpoint</td><td>Test: delete a memory, verify it disappears from search results</td></tr><tr><td>Background jobs</td><td>Decay runner, deduplicator monitored with alerts on failure</td></tr><tr><td>Embedding model locked</td><td>Model pinned to a specific version in config; re-embedding pipeline exists</td></tr></tbody></table></div><div class="callout callout-green"><div class="callout-label">&#10003; You are ready to ship when</div><p>Every item above has a test that runs in CI. The memory service has its own SLA, its own on-call rotation, and its own dashboard. It is a product, not a feature.</p></div></div><div class="quiz" id="q11"><div class="quiz-q">What is the most important thing that separates a memory demo from a production memory system?</div><div class="quiz-opts"><div class="quiz-opt" onclick="answerQuiz('q11',this,false,'Model quality matters, but it is not the key separator. Governance, isolation, and reliability engineering are.')"><span>A</span>Using a more powerful LLM for extraction</div><div class="quiz-opt" onclick="answerQuiz('q11',this,true,'Correct. A demo has a read path and a write path. A production system adds the full governance layer: PII protection, conflict resolution, tenant isolation, audit trails, latency SLAs, and failure handling.')"><span>B</span>Governance: PII filtering, conflict detection, permission scoping, audit logging, and reliability engineering</div><div class="quiz-opt" onclick="answerQuiz('q11',this,false,'Volume of stored memories is not the key differentiator. Quality and safety of the system are.')"><span>C</span>Storing more memories</div><div class="quiz-opt" onclick="answerQuiz('q11',this,false,'Architecture choice matters for specific query patterns, but governance is what determines production readiness.')"><span>D</span>Using a knowledge graph instead of a vector store</div></div><div class="quiz-feedback" id="q11-fb"></div></div></div><div class="post-nav"><a class="post-nav-item" href="10d-memory-api.html"><div class="post-nav-label">&#8592; Previous</div><div class="post-nav-title">Memory API</div><div class="post-nav-sub">Chapter 10d</div></a><div class="post-nav-item empty"></div></div><footer><p>AI Agent Memory &mdash; Interactive Learning Guide</p><div class="footer-links"><a href="index.html">Home</a></div></footer></div></div><script src="shared.js"></script><script>
+/* Simple agent memory simulator for the capstone demo */
+var agentMemory = [];
+var sessionHistory = [];
+var turnCount = 0;
+
+function simReset() {
+  agentMemory = [];
+  sessionHistory = [];
+  turnCount = 0;
+  document.getElementById('agent-chat').innerHTML = '';
+  document.getElementById('mem-list').innerHTML = '<div style="color:var(--muted);font-style:italic;font-size:.85rem;">Memory store is empty.</div>';
+  document.getElementById('mem-count').textContent = '0 memories';
+  appendAgentSys('Agent reset. Memory cleared. Start a new conversation.');
+}
+
+function appendAgentMsg(el, role, text) {
+  var cls = role === 'user' ? 'chat-msg user' : 'chat-msg ai';
+  var lbl = role === 'user' ? 'You' : 'Agent';
+  el.innerHTML += '<div class="' + cls + '"><div class="chat-bubble"><div class="chat-lbl">' + lbl + '</div>' + text + '</div></div>';
+  el.scrollTop = el.scrollHeight;
+}
+
+function appendAgentSys(text) {
+  var el = document.getElementById('agent-chat');
+  el.innerHTML += '<div style="text-align:center;font-family:var(--mono);font-size:.73rem;color:var(--muted);padding:8px 0;">' + text + '</div>';
+  el.scrollTop = el.scrollHeight;
+}
+
+function extractFacts(text) {
+  var facts = [];
+  var nameM = text.match(/(?:my name is|i'm called|call me) ([A-Za-z]+)/i);
+  if (nameM) facts.push('User's name is ' + nameM[1]);
+  var jobM = text.match(/(?:i work as|i'm a|i am a) ([A-Za-z ]+?)(?:\.|,|$)/i);
+  if (jobM) facts.push('User works as ' + jobM[1].trim());
+  var likeM = text.match(/(?:i love|i like|i enjoy) ([A-Za-z ]+?)(?:\.|,|$)/i);
+  if (likeM) facts.push('User likes ' + likeM[1].trim());
+  var liveM = text.match(/i (?:live|am) in ([A-Za-z ]+?)(?:\.|,|$)/i);
+  if (liveM) facts.push('User lives in ' + liveM[1].trim());
+  return facts;
+}
+
+function retrieveMemories(query) {
+  if (agentMemory.length === 0) return [];
+  var ql = query.toLowerCase();
+  return agentMemory.filter(function(m) {
+    var ml = m.toLowerCase();
+    var qwords = ql.split(' ').filter(function(w) { return w.length > 3; });
+    return qwords.some(function(w) { return ml.includes(w); });
+  }).slice(0, 3);
+}
+
+function generateResponse(userMsg, retrieved) {
+  var ml = userMsg.toLowerCase();
+  var prefix = retrieved.length ? '<em style="font-size:.8rem;color:var(--muted);">[Using ' + retrieved.length + ' retrieved memor' + (retrieved.length===1?'y':'ies') + ']</em><br/>' : '';
+
+  if (ml.includes('name') && ml.includes('what')) {
+    var nameMem = agentMemory.find(function(m) { return m.toLowerCase().includes('name'); });
+    if (nameMem) return prefix + nameMem.replace("User's name is", "Your name is") + '.';
+    return prefix + 'I don't know your name yet &mdash; you haven't told me!';
+  }
+  if (ml.includes('what do you know') || ml.includes('tell me about me')) {
+    if (agentMemory.length === 0) return 'I don't know anything about you yet. Tell me something!';
+    return prefix + 'Here is what I remember about you:<br/><ul style="margin:8px 0 0 16px;">' + agentMemory.map(function(m) { return '<li>' + m + '</li>'; }).join('') + '</ul>';
+  }
+  if (ml.includes('remem')) {
+    return retrieved.length ? prefix + 'Yes &mdash; ' + retrieved[0] : 'I don't have anything specific about that in my memory yet.';
+  }
+  if (ml.includes('hello') || ml.includes('hi')) {
+    var n = agentMemory.find(function(m){return m.toLowerCase().includes('name');});
+    return prefix + (n ? 'Hello again, ' + n.replace(/.*name is /i,'').split(' ')[0] + '! How can I help?' : 'Hello! Tell me your name so I can remember you.');
+  }
+  return prefix + 'Got it! I'll remember that. ' + (retrieved.length ? 'I also recalled: ' + retrieved[0] + '.' : '');
+}
+
+function updateMemDisplay() {
+  var el = document.getElementById('mem-list');
+  document.getElementById('mem-count').textContent = agentMemory.length + ' memor' + (agentMemory.length===1?'y':'ies');
+  if (agentMemory.length === 0) {
+    el.innerHTML = '<div style="color:var(--muted);font-style:italic;font-size:.85rem;">Memory store is empty.</div>';
+    return;
+  }
+  el.innerHTML = agentMemory.map(function(m, i) {
+    return '<div class="mem-item"><span class="badge badge-active">#' + (i+1) + '</span><span style="flex:1;font-size:.85rem;">' + m + '</span></div>';
+  }).join('');
+}
+
+function agentSend() {
+  var inp = document.getElementById('agent-inp');
+  var msg = inp.value.trim();
+  if (!msg) return;
+  inp.value = '';
+  turnCount++;
+  var chatEl = document.getElementById('agent-chat');
+  appendAgentMsg(chatEl, 'user', msg);
+
+  // Retrieve
+  var retrieved = retrieveMemories(msg);
+  if (retrieved.length) appendAgentSys('&#128269; Retrieved ' + retrieved.length + ' memor' + (retrieved.length===1?'y':'ies') + ' from store');
+
+  // Extract new facts
+  var newFacts = extractFacts(msg);
+  var governed = newFacts.filter(function(f) {
+    return !agentMemory.some(function(m) { return m.toLowerCase().includes(f.split(' ').slice(-1)[0].toLowerCase()); });
+  });
+  if (governed.length) {
+    agentMemory = agentMemory.concat(governed);
+    appendAgentSys('&#128190; Stored ' + governed.length + ' new fact' + (governed.length===1?'':'s'));
+    updateMemDisplay();
+  }
+
+  // Respond
+  setTimeout(function() {
+    appendAgentMsg(chatEl, 'ai', generateResponse(msg, retrieved));
+  }, 300);
+}
+
+window.onload = function() { simReset(); };
+</script></body></html>

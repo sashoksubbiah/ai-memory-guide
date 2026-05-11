@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Try It Yourself: Memory On vs Off &#8212; AI Memory Guide</title>
+<meta name="description" content="The fastest way to understand what memory does is to watch a conversation break without it."/>
+<link rel="stylesheet" href="shared.css"/>
+<style>@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div class="topbar">
+  <div class="sidebar-toggle" onclick="toggleSidebar()"><span></span><span></span><span></span></div>
+  <div class="topbar-title">AI <span>Memory</span> Guide</div>
+</div>
+<nav class="sidebar" id="sidebar"><div class="sidebar-logo"><a href="index.html">&#129504; AI <span>Memory</span> Guide</a></div><div class="sidebar-nav"><div class="nav-section-label">Chapters</div><div class="nav-item"><a href="01-what-is-memory.html"><span class="nav-num">01</span>What is Memory?</a><div class="nav-sub"><a href="01a-try-it-yourself.html">Try it yourself</a></div></div><div class="nav-item"><a href="02-context-window.html"><span class="nav-num">02</span>The Context Window</a><div class="nav-sub"><a href="02a-fifo-eviction.html">FIFO Eviction</a></div></div><div class="nav-item"><a href="03-short-vs-long.html"><span class="nav-num">03</span>Short vs Long-Term</a><div class="nav-sub"><a href="03a-working-memory.html">Working Memory</a><a href="03b-long-term-memory.html">Long-Term Memory</a><a href="03c-write-conflicts.html">Write Conflicts</a></div></div><div class="nav-item"><a href="04-embeddings.html"><span class="nav-num">04</span>Vector Embeddings</a><div class="nav-sub"><a href="04a-cosine-similarity.html">Cosine Similarity</a><a href="04b-embedding-space.html">Embedding Space</a></div></div><div class="nav-item"><a href="05-memory-types.html"><span class="nav-num">05</span>Types of Memory</a><div class="nav-sub"><a href="05a-episodic.html">Episodic</a><a href="05b-semantic.html">Semantic</a><a href="05c-procedural.html">Procedural</a><a href="05d-working.html">Working</a><a href="05e-all-four-together.html">All Four Together</a></div></div><div class="nav-item"><a href="06-rag-loop.html"><span class="nav-num">06</span>The RAG Loop</a><div class="nav-sub"><a href="06a-hyde.html">HyDE</a><a href="06b-rrf.html">RRF</a></div></div><div class="nav-item"><a href="07-retrieval-pipeline.html"><span class="nav-num">07</span>Retrieval Pipeline</a><div class="nav-sub"><a href="07a-need-detection.html">Need Detection</a><a href="07b-hybrid-retrieval.html">Hybrid Retrieval</a></div></div><div class="nav-item"><a href="08-architectures.html"><span class="nav-num">08</span>Architectures</a><div class="nav-sub"><a href="08a-simple-buffer.html">Simple Buffer</a><a href="08b-rolling-summary.html">Rolling Summary</a><a href="08c-vector-store.html">Vector Store</a><a href="08d-knowledge-graph.html">Knowledge Graph</a><a href="08e-memgpt.html">MemGPT</a><a href="08f-self-editing.html">Letta</a></div></div><div class="nav-item"><a href="09-multi-agent.html"><span class="nav-num">09</span>Multi-Agent Memory</a><div class="nav-sub"><a href="09a-permission-model.html">Permissions</a><a href="09b-failure-modes.html">Failure Modes</a></div></div><div class="nav-item"><a href="10-production.html"><span class="nav-num">10</span>Production</a><div class="nav-sub"><a href="10a-multi-tenancy.html">Multi-Tenancy</a><a href="10b-latency-budget.html">Latency Budget</a><a href="10c-storage-tiers.html">Storage Tiers</a><a href="10d-memory-api.html">Memory API</a></div></div><div class="nav-item"><a href="11-build-your-own.html"><span class="nav-num">11</span>Build Your Own</a></div></div></nav>
+<div class="main-content"><div class="article-outer">
+<div class="article-hero fade" style="background:radial-gradient(ellipse 65% 55% at 65% 35%,rgba(56,212,142,.07) 0%,transparent 65%);"><div class="article-meta"><span class="tag">01a &#8212; Demo</span><span class="tag green">Beginner</span><span class="read-time">&#9203; · 5 min read</span></div><h1>Try It Yourself: Memory On vs Off</h1><p style="font-size:1.05rem;color:var(--muted2);max-width:600px;margin-top:12px;font-style:italic;">The fastest way to understand what memory does is to watch a conversation break without it.</p></div><div class="article-body">
+<div class="toc-aside"><div class="toc-aside-title">On this page</div><a href="#why">Why this matters</a><a href="#demo">Live demo</a><a href="#code">The code</a><a href="#limits">Limitations</a></div><div id="why" class="fade"><div class="section-label">Motivation</div><h2>Why this demo</h2><p>In <a href="01-what-is-memory.html">Chapter 01</a> we established that a language model is stateless. Reading about it is one thing. <em>Experiencing</em> it break is another.</p><p>Two modes: memory <strong>ON</strong> prepends the full transcript every turn. Memory <strong>OFF</strong> isolates each turn completely &#8212; the model sees only the current message.</p><div class="callout callout-blue"><div class="callout-label">&#128299; Suggested experiment</div><p><strong>Step 1:</strong> Memory ON. Say "My name is Alex". Say "I like hiking". Ask "What do you know about me?" &#8212; both facts should be recalled.<br/><strong>Step 2:</strong> Click Reset. Toggle memory OFF. Repeat the same three messages. Watch step 3 fail completely.</p></div></div>
+<div id="demo" class="fade"><div class="section-label">Interactive</div><h2>The demo</h2><div class="demo"><div class="demo-bar"><div class="demo-bar-dots"><div class="demo-bar-dot"></div><div class="demo-bar-dot"></div><div class="demo-bar-dot"></div></div><div class="demo-bar-label" id="tc">Turn 0</div></div><div class="demo-body"><div class="toggle-row"><label class="toggle"><input type="checkbox" id="dt" checked/><div class="toggle-track"></div></label><span class="toggle-label" id="dl">Memory: <strong style="color:var(--green)">ON</strong></span><button class="btn btn-sm btn-ghost" onclick="demoReset()" style="margin-left:auto">&#8634; Reset</button></div><div id="ds" style="font-family:var(--mono);font-size:.74rem;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 14px;margin-bottom:13px;">Strategy: <span style="color:var(--green)">Full transcript replay</span> &#8212; history prepended every turn</div><div class="chat-wrap" id="dc"></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin:11px 0;"><button class="btn btn-sm btn-ghost" onclick="dSay('My name is Alex')">My name is Alex</button><button class="btn btn-sm btn-ghost" onclick="dSay('I enjoy hiking')">I enjoy hiking</button><button class="btn btn-sm btn-ghost" onclick="dSay('What do you know about me?')">What do you know about me?</button><button class="btn btn-sm btn-ghost" onclick="dSay('What is my name?')">What is my name?</button></div><div class="chat-input-row"><input class="chat-input" id="di" placeholder="Type or pick a suggestion..." onkeydown="if(event.key==='Enter')dSend()"/><button class="btn btn-sm" onclick="dSend()">Send</button></div></div></div></div>
+<div id="code" class="fade"><div class="section-label">Under the Hood</div><h2>What the code looks like</h2><p>This is essentially one extra line: prepend the transcript. Simple in theory. But it breaks the moment the conversation grows longer than the context window.</p><div class="code-file"><div class="code-file-header"><div class="code-file-dots"><div class="code-file-dot"></div><div class="code-file-dot"></div><div class="code-file-dot"></div></div>simple_memory.py</div><pre><code>transcript = []
+
+def chat(user_message: str) -> str:
+    # Memory ON: include full history
+    prompt = "\n".join(transcript) + "\nUser: " + user_message
+
+    # Memory OFF would just be:
+    # prompt = user_message
+
+    response = llm.call(prompt)
+    transcript.append(f"User: {user_message}")
+    transcript.append(f"Assistant: {response}")
+    return response</code></pre></div><p>Once the transcript grows past the context limit, something must be dropped. That is exactly what <a href="02-context-window.html">Chapter 02</a> is about.</p></div>
+<div id="limits" class="fade"><div class="section-label">Honesty</div><h2>Limitations of this demo</h2><div class="callout callout-amber"><div class="callout-label">&#9888; Toy simulation</div><p>The AI responses use simple pattern-matching, not a real language model. The goal is to show the <em>structural</em> difference memory makes &#8212; not to demonstrate LLM quality.</p></div></div>
+</div>
+<div class="post-nav"><a class="post-nav-item" href="01-what-is-memory.html"><div class="post-nav-label">&#8592; Previous</div><div class="post-nav-title">What is Memory?</div><div class="post-nav-sub">Chapter 01</div></a><a class="post-nav-item" href="02-context-window.html"><div class="post-nav-label">Next &#8594;</div><div class="post-nav-title">The Context Window</div><div class="post-nav-sub">Chapter 02</div></a></div>
+<footer>
+  <p>AI Agent Memory &#8212; Interactive Learning Guide</p>
+  <div class="footer-links">
+    <a href="index.html">Home</a>
+    <a href="https://arxiv.org/abs/2310.08560" target="_blank">MemGPT Paper</a>
+    <a href="https://arxiv.org/abs/2212.10496" target="_blank">HyDE Paper</a>
+    <a href="https://docs.letta.com" target="_blank">Letta Docs</a>
+  </div>
+</footer>
+</div></div>
+<script src="shared.js"></script>
+<script>
+let dH=[],dTurn=0;
+const dC=document.getElementById('dc'),dToggle=document.getElementById('dt'),dLabel=document.getElementById('dl');
+dToggle.addEventListener('change',()=>{const on=dToggle.checked;
+dLabel.innerHTML='Memory: <strong style="color:'+(on?'var(--green)':'var(--red)')+'">'+( on?'ON':'OFF')+'</strong>';
+document.getElementById('ds').innerHTML=on
+?'Strategy: <span style="color:var(--green)">Full transcript replay</span> &#8212; history prepended every turn'
+:'Strategy: <span style="color:var(--red)">Stateless</span> &#8212; model sees only the current message';});
+function demoReset(){dH=[];dTurn=0;dC.innerHTML='';document.getElementById('tc').textContent='Turn 0';appendSys(dC,'Reset. Start a fresh conversation.');}
+function dSay(t){document.getElementById('di').value=t;dSend();}
+function dSend(){const inp=document.getElementById('di');const txt=inp.value.trim();if(!txt)return;inp.value='';
+dTurn++;document.getElementById('tc').textContent='Turn '+dTurn;
+appendMsg(dC,'user',txt);const on=dToggle.checked;const ctx=on?dH.join(' '):'';
+if(!on&&dH.length>0)appendSys(dC,'&#9888; No history passed to model this turn');
+const all=(ctx+' '+txt).toLowerCase();let r='';
+const nm=txt.match(/my name is ([A-Za-z]+)/i);
+if(nm){r='Got it, '+nm[1].charAt(0).toUpperCase()+nm[1].slice(1)+'! I'll keep that in mind.';}
+else if(txt.toLowerCase().includes('know about me')){
+const f=[];const m=all.match(/my name is ([A-Za-z]+)/i);if(m)f.push('Your name is '+m[1]);
+if(all.includes('hiking'))f.push('You enjoy hiking');if(all.includes('photography'))f.push('You like photography');
+r=f.length?'Here's what I know: '+f.join('. ')+'.':'I don't know anything about you yet this session.';}
+else if(txt.toLowerCase().includes('what is my name')){const m=all.match(/my name is ([A-Za-z]+)/i);r=m?'Your name is '+m[1]+'!':'I don't know your name &#8212; you haven't told me this session.';}
+else if(/hello|hi/.test(txt.toLowerCase())){r='Hello! What would you like to talk about?';}
+else{r='Interesting! Feel free to tell me more about yourself.';}
+setTimeout(()=>{appendMsg(dC,'ai',r);dH.push(txt,r);},300);}
+demoReset();
+</script>
+</body></html>

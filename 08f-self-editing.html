@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Self-Editing Memory &#8212; AI Memory Guide</title>
+<meta name="description" content="The agent rewrites its own long-term store"/>
+<link rel="stylesheet" href="shared.css"/>
+<style>@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div class="topbar"><div class="sidebar-toggle" onclick="toggleSidebar()"><span></span><span></span><span></span></div><div class="topbar-title">AI <span>Memory</span> Guide</div></div>
+<nav class="sidebar" id="sidebar"><div class="sidebar-logo"><a href="index.html">&#129504; AI <span>Memory</span> Guide</a></div><div class="sidebar-nav"><div class="nav-section-label">Chapters</div><div class="nav-item"><a href="01-what-is-memory.html"><span class="nav-num">01</span>What is Memory?</a><div class="nav-sub"><a href="01a-try-it-yourself.html">Try it yourself</a></div></div><div class="nav-item"><a href="02-context-window.html"><span class="nav-num">02</span>The Context Window</a><div class="nav-sub"><a href="02a-fifo-eviction.html">FIFO Eviction</a></div></div><div class="nav-item"><a href="03-short-vs-long.html"><span class="nav-num">03</span>Short vs Long-Term</a><div class="nav-sub"><a href="03a-working-memory.html">Working Memory</a><a href="03b-long-term-memory.html">Long-Term Memory</a><a href="03c-write-conflicts.html">Write Conflicts</a></div></div><div class="nav-item"><a href="04-embeddings.html"><span class="nav-num">04</span>Vector Embeddings</a><div class="nav-sub"><a href="04a-cosine-similarity.html">Cosine Similarity</a><a href="04b-embedding-space.html">Embedding Space</a></div></div><div class="nav-item"><a href="05-memory-types.html"><span class="nav-num">05</span>Types of Memory</a><div class="nav-sub"><a href="05a-episodic.html">Episodic</a><a href="05b-semantic.html">Semantic</a><a href="05c-procedural.html">Procedural</a><a href="05d-working.html">Working</a><a href="05e-all-four-together.html">All Four Together</a></div></div><div class="nav-item"><a href="06-rag-loop.html"><span class="nav-num">06</span>The RAG Loop</a><div class="nav-sub"><a href="06a-hyde.html">HyDE</a><a href="06b-rrf.html">RRF</a></div></div><div class="nav-item"><a href="07-retrieval-pipeline.html"><span class="nav-num">07</span>Retrieval Pipeline</a><div class="nav-sub"><a href="07a-need-detection.html">Need Detection</a><a href="07b-hybrid-retrieval.html">Hybrid Retrieval</a></div></div><div class="nav-item"><a href="08-architectures.html"><span class="nav-num">08</span>Architectures</a><div class="nav-sub"><a href="08a-simple-buffer.html">Simple Buffer</a><a href="08b-rolling-summary.html">Rolling Summary</a><a href="08c-vector-store.html">Vector Store</a><a href="08d-knowledge-graph.html">Knowledge Graph</a><a href="08e-memgpt.html">MemGPT</a><a href="08f-self-editing.html">Letta</a></div></div><div class="nav-item"><a href="09-multi-agent.html"><span class="nav-num">09</span>Multi-Agent Memory</a><div class="nav-sub"><a href="09a-permission-model.html">Permissions</a><a href="09b-failure-modes.html">Failure Modes</a></div></div><div class="nav-item"><a href="10-production.html"><span class="nav-num">10</span>Production</a><div class="nav-sub"><a href="10a-multi-tenancy.html">Multi-Tenancy</a><a href="10b-latency-budget.html">Latency Budget</a><a href="10c-storage-tiers.html">Storage Tiers</a><a href="10d-memory-api.html">Memory API</a></div></div><div class="nav-item"><a href="11-build-your-own.html"><span class="nav-num">11</span>Build Your Own</a></div></div></nav>
+<div class="main-content"><div class="article-outer">
+<div class="article-hero fade" style="background:radial-gradient(ellipse 65% 55% at 65% 35%,rgba(157,94,240,.07) 0%,transparent 65%);"><div class="article-meta"><span class="tag">08f</span><span class="tag purple">Advanced</span><span class="read-time">&#9203; · 11 min</span></div><h1>Self-Editing Memory: The Letta Approach</h1><p style="font-size:1.05rem;color:var(--muted2);max-width:600px;margin-top:12px;font-style:italic;">The agent does not just retrieve memories — it rewrites, merges, supersedes, and redacts its own long-term store.</p></div><div class="article-body"><div class="toc-aside"><div class="toc-aside-title">On this page</div><a href="#what">What self-editing is</a><a href="#ops">Self-editing operations</a><a href="#letta">How Letta implements it</a><a href="#risks">Risks and mitigations</a><a href="#quiz">Quiz</a></div><div id="what" class="fade"><div class="section-label">Definition</div><h2>What self-editing memory means</h2><p>In a self-editing memory system, the agent can <em>modify</em> its own long-term store, not just read from it. It can rewrite stale facts, merge redundant memories, supersede contradicted information, and redact content it should not have stored.</p><p>Letta (formerly MemGPT) pushed this concept furthest: agents in Letta have a "core memory" block they can directly edit, plus an archival store they can search and modify.</p></div><div class="divider"></div><div id="ops" class="fade"><div class="section-label">Self-Editing Operations</div><h2>What the agent can do to its own memory</h2><div class="code-file"><div class="code-file-header"><div class="code-file-dots"><div class="code-file-dot"></div><div class="code-file-dot"></div><div class="code-file-dot"></div></div>self_edit.py</div><pre><code># Letta-style self-editing operations:
+
+# Rewrite a memory (agent decided it is now outdated)
+memory.update(
+    id="fact_123",
+    new_text="User now lives in Berlin (moved from Istanbul in March 2024)",
+    supersedes="fact_089"  # old Istanbul fact
+)
+
+# Merge two redundant memories
+memory.merge(
+    ids=["fact_201", "fact_202"],
+    merged_text="User is a Python engineer who works on generative AI"
+)
+
+# Redact a sensitive memory the agent should not have stored
+memory.redact(id="fact_300", reason="PII: contained phone number")
+
+# Add a new memory the agent decided is important
+memory.create(text="User explicitly asked to be addressed as 'Dr. Patel'")</code></pre></div><div class="callout callout-blue"><div class="callout-label">&#128161; Self-editing enables active memory management</div><p>A standard RAG agent is passive: the memory store reflects what has been extracted from conversations. A self-editing agent actively curates: merging, pruning, correcting, and superseding as it learns more.</p></div></div><div class="divider"></div><div id="letta" class="fade"><div class="section-label">Letta</div><h2>How Letta implements it</h2><p>Letta gives each agent a "core memory" block &mdash; a structured text block in the system prompt that the agent can directly edit using memory tool calls. The agent rewrites its own core memory as conversations progress.</p><div class="code-file"><div class="code-file-header"><div class="code-file-dots"><div class="code-file-dot"></div><div class="code-file-dot"></div><div class="code-file-dot"></div></div>letta_core.py</div><pre><code># Letta core memory block (in agent's system prompt)
+core_memory = """
+[PERSONA]
+I am a helpful assistant focused on the user's creative projects.
+
+[USER]
+Name: Priya
+Job: Engineer at Refik Anadol Studio
+Location: Los Angeles
+Preferences: Concise technical answers, Python examples
+"""
+
+# When user says "I moved to Berlin":
+# Agent calls: memory_edit(section="USER", field="Location", value="Berlin")
+# Core memory is updated in-place
+# No vector DB query needed for this fact next turn</code></pre></div></div><div class="divider"></div><div id="risks" class="fade"><div class="section-label">Risks and Mitigations</div><h2>What can go wrong</h2><div class="table-wrap"><table><thead><tr><th>Risk</th><th>Description</th><th>Mitigation</th></tr></thead><tbody><tr><td>Self-corruption</td><td>Agent incorrectly rewrites a valid memory</td><td>Version history, rollback capability</td></tr><tr><td>Hallucinated memories</td><td>Agent writes a memory it hallucinated</td><td>Source tracking, confidence thresholds</td></tr><tr><td>PII propagation</td><td>Agent copies sensitive data to a new memory during merge</td><td>PII filter on all write operations, including merges</td></tr><tr><td>Drift</td><td>Agent's core memory gradually diverges from ground truth</td><td>Periodic human review, confidence decay</td></tr></tbody></table></div><div class="callout callout-amber"><div class="callout-label">&#9888; Self-editing adds risk</div><p>Every write that the agent controls is a potential failure point. For most agents, standard RAG with governed writes is safer. Add self-editing only when active memory curation is a clear product requirement.</p></div></div><div class="quiz" id="q08f"><div class="quiz-q">What risk does self-editing memory introduce compared to standard RAG?</div><div class="quiz-opts"><div class="quiz-opt" onclick="answerQuiz('q08f',this,false,'Speed is not the primary concern with self-editing memory.')"><span>A</span>Self-editing memory is slower to write</div><div class="quiz-opt" onclick="answerQuiz('q08f',this,true,'Correct. When the agent can modify its own memories, incorrect rewrites, hallucinated facts, and propagated PII become failure modes that do not exist in read-only retrieval architectures.')"><span>B</span>The agent may corrupt, hallucinate, or incorrectly rewrite valid memories since it controls its own store</div><div class="quiz-opt" onclick="answerQuiz('q08f',this,false,'Self-editing memory can store any type of fact. The issue is control and correctness, not capability.')"><span>C</span>Self-editing memory cannot store user facts</div><div class="quiz-opt" onclick="answerQuiz('q08f',this,false,'Self-editing memory requires even more governance than passive RAG, because the agent itself is a write actor.')"><span>D</span>Self-editing requires no governance</div></div><div class="quiz-feedback" id="q08f-fb"></div></div></div>
+<div class="post-nav"><a class="post-nav-item" href="08e-memgpt.html"><div class="post-nav-label">&#8592; Previous</div><div class="post-nav-title">MemGPT</div><div class="post-nav-sub">Chapter 08e</div></a><a class="post-nav-item" href="09-multi-agent.html"><div class="post-nav-label">Next &#8594;</div><div class="post-nav-title">Multi-Agent Memory</div><div class="post-nav-sub">Chapter 09</div></a></div>
+<footer><p>AI Agent Memory &#8212; Interactive Learning Guide</p><div class="footer-links"><a href="index.html">Home</a><a href="https://arxiv.org/abs/2310.08560" target="_blank">MemGPT Paper</a><a href="https://arxiv.org/abs/2212.10496" target="_blank">HyDE Paper</a><a href="https://docs.letta.com" target="_blank">Letta Docs</a></div></footer>
+</div></div>
+<script src="shared.js"></script>
+
+</body>
+</html>

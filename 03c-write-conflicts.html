@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>When Writes Conflict &#8212; AI Memory Guide</title>
+<meta name="description" content="Memory governance: supersession, redaction, and temporal history"/>
+<link rel="stylesheet" href="shared.css"/>
+<style>@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div class="topbar">
+  <div class="sidebar-toggle" onclick="toggleSidebar()"><span></span><span></span><span></span></div>
+  <div class="topbar-title">AI <span>Memory</span> Guide</div>
+</div>
+<nav class="sidebar" id="sidebar"><div class="sidebar-logo"><a href="index.html">&#129504; AI <span>Memory</span> Guide</a></div><div class="sidebar-nav"><div class="nav-section-label">Chapters</div><div class="nav-item"><a href="01-what-is-memory.html"><span class="nav-num">01</span>What is Memory?</a><div class="nav-sub"><a href="01a-try-it-yourself.html">Try it yourself</a></div></div><div class="nav-item"><a href="02-context-window.html"><span class="nav-num">02</span>The Context Window</a><div class="nav-sub"><a href="02a-fifo-eviction.html">FIFO Eviction</a></div></div><div class="nav-item"><a href="03-short-vs-long.html"><span class="nav-num">03</span>Short vs Long-Term</a><div class="nav-sub"><a href="03a-working-memory.html">Working Memory</a><a href="03b-long-term-memory.html">Long-Term Memory</a><a href="03c-write-conflicts.html">Write Conflicts</a></div></div><div class="nav-item"><a href="04-embeddings.html"><span class="nav-num">04</span>Vector Embeddings</a><div class="nav-sub"><a href="04a-cosine-similarity.html">Cosine Similarity</a><a href="04b-embedding-space.html">Embedding Space</a></div></div><div class="nav-item"><a href="05-memory-types.html"><span class="nav-num">05</span>Types of Memory</a><div class="nav-sub"><a href="05a-episodic.html">Episodic</a><a href="05b-semantic.html">Semantic</a><a href="05c-procedural.html">Procedural</a><a href="05d-working.html">Working</a><a href="05e-all-four-together.html">All Four Together</a></div></div><div class="nav-item"><a href="06-rag-loop.html"><span class="nav-num">06</span>The RAG Loop</a><div class="nav-sub"><a href="06a-hyde.html">HyDE</a><a href="06b-rrf.html">RRF</a></div></div><div class="nav-item"><a href="07-retrieval-pipeline.html"><span class="nav-num">07</span>Retrieval Pipeline</a><div class="nav-sub"><a href="07a-need-detection.html">Need Detection</a><a href="07b-hybrid-retrieval.html">Hybrid Retrieval</a></div></div><div class="nav-item"><a href="08-architectures.html"><span class="nav-num">08</span>Architectures</a><div class="nav-sub"><a href="08a-simple-buffer.html">Simple Buffer</a><a href="08b-rolling-summary.html">Rolling Summary</a><a href="08c-vector-store.html">Vector Store</a><a href="08d-knowledge-graph.html">Knowledge Graph</a><a href="08e-memgpt.html">MemGPT</a><a href="08f-self-editing.html">Letta</a></div></div><div class="nav-item"><a href="09-multi-agent.html"><span class="nav-num">09</span>Multi-Agent Memory</a><div class="nav-sub"><a href="09a-permission-model.html">Permissions</a><a href="09b-failure-modes.html">Failure Modes</a></div></div><div class="nav-item"><a href="10-production.html"><span class="nav-num">10</span>Production</a><div class="nav-sub"><a href="10a-multi-tenancy.html">Multi-Tenancy</a><a href="10b-latency-budget.html">Latency Budget</a><a href="10c-storage-tiers.html">Storage Tiers</a><a href="10d-memory-api.html">Memory API</a></div></div><div class="nav-item"><a href="11-build-your-own.html"><span class="nav-num">11</span>Build Your Own</a></div></div></nav>
+<div class="main-content"><div class="article-outer">
+<div class="article-hero fade" style="background:radial-gradient(ellipse 65% 55% at 65% 35%,rgba(240,168,48,.07) 0%,transparent 65%);"><div class="article-meta"><span class="tag">03c &#8212; Write Conflicts</span><span class="tag amber">Intermediate</span><span class="read-time">&#9203; · 10 min read</span></div><h1>When Writes Conflict: Memory Governance</h1><p style="font-size:1.05rem;color:var(--muted2);max-width:600px;margin-top:12px;font-style:italic;">Naive append leaks PII and produces contradictions. Governed memory handles supersession, redaction, and temporal history.</p></div><div class="article-body"><div class="toc-aside"><div class="toc-aside-title">On this page</div><a href="#problem">The conflict problem</a><a href="#naive-a">Naive append</a><a href="#naive-o">Naive overwrite</a><a href="#governed">Governed memory</a><a href="#impl">Implementation</a><a href="#quiz">Quiz</a></div><div id="problem" class="fade"><div class="section-label">The Problem</div><h2>When facts contradict each other</h2><p>Memory is not a one-time write. Users move. Preferences change. Jobs switch. A user who told you they live in Istanbul two months ago might now be in Berlin.</p><p>How do you handle conflicting writes? Three strategies, with very different outcomes.</p><div class="callout callout-blue"><div class="callout-label">&#128229; Incoming utterances</div><p>1. "User lives in Istanbul."<br/>2. "User is moving to Berlin next month."<br/>3. "User's credit card: 4111-1111-1111-1111"</p></div></div><div class="divider"></div><div id="naive-a" class="fade"><div class="section-label">Strategy 1</div><h2>Naive append</h2><div class="callout callout-red"><div class="callout-label">&#10007; Naive Append Result</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"><div class="mem-item"><span class="badge badge-active">stored</span>User lives in Istanbul.</div><div class="mem-item"><span class="badge badge-active">stored</span>User is moving to Berlin next month.</div><div class="mem-item redacted"><span class="badge badge-redacted">&#9888; PII</span>User credit card: 4111-1111-1111-1111</div></div><p style="margin-top:12px;font-size:.88rem;">The agent now sees two contradictory city facts and will pick one arbitrarily. PII is stored unguarded in plaintext.</p></div></div><div class="divider"></div><div id="naive-o" class="fade"><div class="section-label">Strategy 2</div><h2>Naive overwrite</h2><div class="callout callout-amber"><div class="callout-label">&#9888; Naive Overwrite Result</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"><div class="mem-item"><span class="badge badge-active">current</span>User lives in Berlin.</div><div class="mem-item redacted"><span class="badge badge-redacted">&#9888; PII</span>User credit card: 4111-1111-1111-1111</div></div><p style="margin-top:12px;font-size:.88rem;">Istanbul is permanently gone. If the user asks "Where did I used to live?", the agent cannot answer. History is lost. PII still stored.</p></div></div><div class="divider"></div><div id="governed" class="fade"><div class="section-label">Strategy 3</div><h2>Governed memory</h2><div class="callout callout-green"><div class="callout-label">&#10003; Governed Result</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"><div class="mem-item new"><span class="badge badge-new">new &#183; valid next month</span>User lives in Berlin.</div><div class="mem-item superseded"><span class="badge badge-sup">superseded &#183; kept for temporal</span>User lived in Istanbul (until next month).</div><div class="mem-item redacted"><span class="badge badge-redacted">redacted</span>[REDACTED &#8212; payment instrument. PII filter triggered.]</div></div><p style="margin-top:12px;font-size:.88rem;">&#10003; No contradiction. &#10003; History preserved for temporal queries. &#10003; PII never touches the store.</p></div></div><div class="divider"></div><div id="impl" class="fade"><div class="section-label">Implementation</div><h2>How to implement governance</h2><div class="code-file"><div class="code-file-header"><div class="code-file-dots"><div class="code-file-dot"></div><div class="code-file-dot"></div><div class="code-file-dot"></div></div>governed_write.py</div><pre><code>import re
+from datetime import datetime
+
+PII_PATTERNS = [r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b"]
+
+def governed_write(fact: str, store):
+    # 1. PII check
+    if any(re.search(p, fact) for p in PII_PATTERNS):
+        store.write({"text": "[REDACTED]", "type": "redacted"})
+        return
+
+    # 2. Check for conflicts
+    existing = store.search_similar(fact, top_k=3)
+    for e in existing:
+        if conflicts(fact, e):
+            store.update(e.id, {"status": "superseded"})  # mark, not delete
+
+    # 3. Write new fact
+    store.write({
+        "text": fact,
+        "status": "active",
+        "created_at": datetime.utcnow(),
+    })</code></pre></div></div><div class="quiz" id="q03c"><div class="quiz-q">What is the key advantage of governed memory over naive overwrite?</div><div class="quiz-opts"><div class="quiz-opt" onclick="answerQuiz('q03c',this,false,'Governed writes are actually slower due to conflict checking.')"><span>A</span>It is faster to write</div><div class="quiz-opt" onclick="answerQuiz('q03c',this,true,'Correct. Superseded facts are kept for temporal queries. New facts do not contradict old ones &#8212; they replace them with an audit trail.')"><span>B</span>It preserves temporal history while preventing contradictions</div><div class="quiz-opt" onclick="answerQuiz('q03c',this,false,'The PII filter is a core part of governed memory, not something you can skip.')"><span>C</span>It requires no PII filter</div><div class="quiz-opt" onclick="answerQuiz('q03c',this,false,'Governed memory stores the same or less data &#8212; duplicates are avoided by the conflict checker.')"><span>D</span>It stores more data</div></div><div class="quiz-feedback" id="q03c-fb"></div></div></div>
+<div class="post-nav">
+<a class="post-nav-item" href="03b-long-term-memory.html"><div class="post-nav-label">&#8592; Previous</div><div class="post-nav-title">Long-Term Memory</div><div class="post-nav-sub">Persistence</div></a>
+<a class="post-nav-item" href="04-embeddings.html"><div class="post-nav-label">Next &#8594;</div><div class="post-nav-title">Vector Embeddings</div><div class="post-nav-sub">Chapter 04</div></a>
+</div>
+<footer>
+  <p>AI Agent Memory &#8212; Interactive Learning Guide</p>
+  <div class="footer-links">
+    <a href="index.html">Home</a>
+    <a href="https://arxiv.org/abs/2310.08560" target="_blank">MemGPT Paper</a>
+    <a href="https://arxiv.org/abs/2212.10496" target="_blank">HyDE Paper</a>
+    <a href="https://docs.letta.com" target="_blank">Letta Docs</a>
+  </div>
+</footer>
+</div></div>
+<script src="shared.js"></script>
+
+</body>
+</html>

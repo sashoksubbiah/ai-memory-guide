@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Episodic Memory &#8212; AI Memory Guide</title>
+<meta name="description" content="What happened, when — time-stamped logs of past interactions"/>
+<link rel="stylesheet" href="shared.css"/>
+<style>@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div class="topbar"><div class="sidebar-toggle" onclick="toggleSidebar()"><span></span><span></span><span></span></div><div class="topbar-title">AI <span>Memory</span> Guide</div></div>
+<nav class="sidebar" id="sidebar"><div class="sidebar-logo"><a href="index.html">&#129504; AI <span>Memory</span> Guide</a></div><div class="sidebar-nav"><div class="nav-section-label">Chapters</div><div class="nav-item"><a href="01-what-is-memory.html"><span class="nav-num">01</span>What is Memory?</a><div class="nav-sub"><a href="01a-try-it-yourself.html">Try it yourself</a></div></div><div class="nav-item"><a href="02-context-window.html"><span class="nav-num">02</span>The Context Window</a><div class="nav-sub"><a href="02a-fifo-eviction.html">FIFO Eviction</a></div></div><div class="nav-item"><a href="03-short-vs-long.html"><span class="nav-num">03</span>Short vs Long-Term</a><div class="nav-sub"><a href="03a-working-memory.html">Working Memory</a><a href="03b-long-term-memory.html">Long-Term Memory</a><a href="03c-write-conflicts.html">Write Conflicts</a></div></div><div class="nav-item"><a href="04-embeddings.html"><span class="nav-num">04</span>Vector Embeddings</a><div class="nav-sub"><a href="04a-cosine-similarity.html">Cosine Similarity</a><a href="04b-embedding-space.html">Embedding Space</a></div></div><div class="nav-item"><a href="05-memory-types.html"><span class="nav-num">05</span>Types of Memory</a><div class="nav-sub"><a href="05a-episodic.html">Episodic</a><a href="05b-semantic.html">Semantic</a><a href="05c-procedural.html">Procedural</a><a href="05d-working.html">Working</a><a href="05e-all-four-together.html">All Four Together</a></div></div><div class="nav-item"><a href="06-rag-loop.html"><span class="nav-num">06</span>The RAG Loop</a><div class="nav-sub"><a href="06a-hyde.html">HyDE</a><a href="06b-rrf.html">RRF</a></div></div><div class="nav-item"><a href="07-retrieval-pipeline.html"><span class="nav-num">07</span>Retrieval Pipeline</a><div class="nav-sub"><a href="07a-need-detection.html">Need Detection</a><a href="07b-hybrid-retrieval.html">Hybrid Retrieval</a></div></div><div class="nav-item"><a href="08-architectures.html"><span class="nav-num">08</span>Architectures</a><div class="nav-sub"><a href="08a-simple-buffer.html">Simple Buffer</a><a href="08b-rolling-summary.html">Rolling Summary</a><a href="08c-vector-store.html">Vector Store</a><a href="08d-knowledge-graph.html">Knowledge Graph</a><a href="08e-memgpt.html">MemGPT</a><a href="08f-self-editing.html">Letta</a></div></div><div class="nav-item"><a href="09-multi-agent.html"><span class="nav-num">09</span>Multi-Agent Memory</a><div class="nav-sub"><a href="09a-permission-model.html">Permissions</a><a href="09b-failure-modes.html">Failure Modes</a></div></div><div class="nav-item"><a href="10-production.html"><span class="nav-num">10</span>Production</a><div class="nav-sub"><a href="10a-multi-tenancy.html">Multi-Tenancy</a><a href="10b-latency-budget.html">Latency Budget</a><a href="10c-storage-tiers.html">Storage Tiers</a><a href="10d-memory-api.html">Memory API</a></div></div><div class="nav-item"><a href="11-build-your-own.html"><span class="nav-num">11</span>Build Your Own</a></div></div></nav>
+<div class="main-content"><div class="article-outer">
+<div class="article-hero fade" style="background:radial-gradient(ellipse 65% 55% at 65% 35%,rgba(77,142,245,.08) 0%,transparent 65%);"><div class="article-meta"><span class="tag">05a</span><span class="tag blue">Intermediate</span><span class="read-time">&#9203; · 9 min</span></div><h1>Episodic Memory: What Happened, When</h1><p style="font-size:1.05rem;color:var(--muted2);max-width:600px;margin-top:12px;font-style:italic;">Time-stamped logs of past interactions. The kind of memory that makes "remember that project from last week?" actually work.</p></div><div class="article-body"><div class="toc-aside"><div class="toc-aside-title">On this page</div><a href="#what">What it is</a><a href="#write">The write path</a><a href="#retrieve">Retrieval</a><a href="#example">Example</a><a href="#quiz">Quiz</a></div><div id="what" class="fade"><div class="section-label">Definition</div><h2>What episodic memory is</h2><p>Episodic memory stores time-ordered logs of past events. Each entry has a <em>when</em>, a <em>what</em>, and ideally a <em>who</em>. Retrieval is most often by recency &mdash; "what did we just talk about?" &mdash; but you can also query by date range or topic.</p><div class="callout callout-blue"><div class="callout-label">&#128220; Real-world analogy</div><p>Episodic memory is like a diary. You do not just know facts about your friend (that is semantic). You remember specific moments with them &mdash; that time you argued about Python vs JavaScript in 2022. That is episodic.</p></div></div><div class="divider"></div><div id="write" class="fade"><div class="section-label">Writing</div><h2>The write path</h2><p>After each conversation turn, the agent extracts a short summary and stores it with metadata:</p><div class="code-file"><div class="code-file-header"><div class="code-file-dots"><div class="code-file-dot"></div><div class="code-file-dot"></div><div class="code-file-dot"></div></div>episodic_write.py</div><pre><code>import uuid
+from datetime import datetime
+
+def write_episode(turn: dict, vector_db):
+    # 1. Extract a concise summary of this turn
+    summary = llm.call(f"Summarize in one sentence: {turn['user']} / {turn['agent']}")
+
+    # 2. Embed the summary
+    vec = embed(summary)
+
+    # 3. Store with rich metadata
+    vector_db.upsert({
+        "id": str(uuid.uuid4()),
+        "vector": vec,
+        "text": summary,
+        "user_id": turn["user_id"],
+        "session_id": turn["session_id"],
+        "created_at": datetime.utcnow().isoformat(),
+        "turn_index": turn["index"]
+    })</code></pre></div></div><div class="divider"></div><div id="retrieve" class="fade"><div class="section-label">Retrieval</div><h2>Finding past episodes</h2><p>Retrieval can combine semantic search (what was discussed) with temporal filters (when):</p><div class="code-file"><div class="code-file-header"><div class="code-file-dots"><div class="code-file-dot"></div><div class="code-file-dot"></div><div class="code-file-dot"></div></div>episodic_search.py</div><pre><code>def find_past_episodes(query, user_id, days_ago=None, top_k=5):
+    query_vec = embed(query)
+    filters = {"user_id": user_id}
+
+    if days_ago:
+        cutoff = (datetime.utcnow() - timedelta(days=days_ago)).isoformat()
+        filters["created_at"] = {"$gte": cutoff}
+
+    return vector_db.search(
+        vector=query_vec,
+        filter=filters,
+        top_k=top_k
+    )</code></pre></div><div class="callout callout-blue"><div class="callout-label">&#128161; ChatGPT's memory feature</div><p>The simplest version of episodic memory is exactly ChatGPT's memory feature: persistent recall across sessions so you do not have to re-explain yourself every time. Under the hood it is a vector store of past conversation summaries.</p></div></div><div class="divider"></div><div id="example" class="fade"><div class="section-label">Example</div><h2>In the real world</h2><p>User: "Can you help me with that Python script we worked on last week?"</p><ol><li>Agent embeds the query.</li><li>Searches episodic store filtered to <code>user_id</code> and <code>last 7 days</code>.</li><li>Retrieves: "User was debugging a Pandas groupby aggregation for sales data."</li><li>Injects into prompt. Agent responds with full context of what was built and where they left off.</li></ol></div><div class="quiz" id="q05a"><div class="quiz-q">What is the key advantage of episodic memory over semantic memory?</div><div class="quiz-opts"><div class="quiz-opt" onclick="answerQuiz('q05a',this,false,'Retrieval speed depends on the database and indexing, not the memory type.')"><span>A</span>Episodic memory is always faster to retrieve</div><div class="quiz-opt" onclick="answerQuiz('q05a',this,true,'Exactly. Episodic memory includes a timestamp and event context, enabling queries like "what did we discuss last Tuesday?" that semantic memory cannot answer.')"><span>B</span>Episodic memory captures temporal context &mdash; when something happened, not just what</div><div class="quiz-opt" onclick="answerQuiz('q05a',this,false,'Episodic memory stores event summaries, which can be quite concise.')"><span>C</span>Episodic memory stores more data</div><div class="quiz-opt" onclick="answerQuiz('q05a',this,false,'Most modern episodic memory implementations use vector embeddings for semantic retrieval of past events.')"><span>D</span>Episodic memory does not require embeddings</div></div><div class="quiz-feedback" id="q05a-fb"></div></div></div>
+<div class="post-nav"><a class="post-nav-item" href="05-memory-types.html"><div class="post-nav-label">&#8592; Previous</div><div class="post-nav-title">Types of Memory</div><div class="post-nav-sub">Overview</div></a><a class="post-nav-item" href="05b-semantic.html"><div class="post-nav-label">Next &#8594;</div><div class="post-nav-title">Semantic Memory</div><div class="post-nav-sub">Facts and relations</div></a></div>
+<footer><p>AI Agent Memory &#8212; Interactive Learning Guide</p><div class="footer-links"><a href="index.html">Home</a><a href="https://arxiv.org/abs/2310.08560" target="_blank">MemGPT Paper</a><a href="https://arxiv.org/abs/2212.10496" target="_blank">HyDE Paper</a><a href="https://docs.letta.com" target="_blank">Letta Docs</a></div></footer>
+</div></div>
+<script src="shared.js"></script>
+
+</body>
+</html>
